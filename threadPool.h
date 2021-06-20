@@ -4,14 +4,15 @@
 #include "osqueue.h"
 #include <pthread.h>
 
-typedef struct thObj {
+typedef struct thread_params {
     void* func;
     void* args;
-} thObj;
+} ThreadParams;
 
 typedef struct thread_pool
 {
-    void *thObj;
+    OSQueue funcQ;
+    ThreadParams thParams;
     pthread_t* threads;
     pthread_mutex_t mutex;
     int numThreads;

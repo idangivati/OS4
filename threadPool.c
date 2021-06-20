@@ -1,10 +1,15 @@
 // Idan Givati 315902239
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 #include "threadPool.h"
 
+void checkForFunc(ThreadPool tp) {
+
+}
 ThreadPool* tpCreate(int numOfThreads) {
-    // if we
+    int ret;
+    // if we received non positive number.
     if(numOfThreads < 1) {
         return NULL;
     }
@@ -15,7 +20,15 @@ ThreadPool* tpCreate(int numOfThreads) {
         perror("Malloc failed");
     }
     for (int i = 0; i < numOfThreads; i ++) {
-        pthread_create(&tp->threads[i], NULL, NULL, NULL);
+        ret = pthread_create(&tp->threads[i], NULL, (void *) checkForFunc, tp);
+        if( ret != 0 )
+        {
+            perror("pthread failed");
+            for (i; i >= 0; i--) {
+                free((void *) tp->threads[i]);
+            }
+            exit(0);
+        }
     }
     tp->numThreads = numOfThreads;
     return tp;
