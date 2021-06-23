@@ -3,23 +3,25 @@
 
 #include "osqueue.h"
 #include <pthread.h>
+#include <stdbool.h>
 
+typedef void (*function)(void *arg);
 typedef struct thread_params {
-    void* func;
+    function func;
     void* args;
 } ThreadParams;
 
 typedef struct thread_pool
 {
-    OSQueue funcQ;
-    ThreadParams thParams;
+    OSQueue *funcQ;
+    bool stop;
     pthread_t* threads;
-    pthread_mutex_t mutex;
-    int numThreads;
-    int active;
-    int numOfFunc;
-    int needToWait;
-    int destroyed;
+    pthread_mutex_t task_mutex;
+    int num_of_threads;
+    int working_threads;
+    pthread_cond_t   task_cond;
+    pthread_cond_t   tasking_cond;
+    int num_of_tasks;
 } ThreadPool;
 
 ThreadPool* tpCreate(int numOfThreads);
