@@ -14,11 +14,12 @@ typedef struct thread_params {
 typedef struct thread_pool
 {
     OSQueue *funcQ;
-    bool stop;
+    int stop;
     pthread_t* threads;
     pthread_mutex_t task_mutex;
     int num_of_threads;
     int working_threads;
+    int need_to_wait;
     pthread_cond_t   task_cond;
     pthread_cond_t   tasking_cond;
     int num_of_tasks;
