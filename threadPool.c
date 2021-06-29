@@ -173,7 +173,7 @@ int tpInsertTask(ThreadPool* threadPool, void (*computeFunc) (void *), void* par
     osEnqueue(threadPool->funcQ, tParams);
     threadPool->num_of_tasks++;
     if(pthread_cond_signal(&(threadPool->task_cond)) != 0) {
-        perror("fuck you");
+        perror("Error in signal");
     }
     if (pthread_mutex_unlock(&(threadPool->task_mutex))) {
         perror("Error in unlock");
