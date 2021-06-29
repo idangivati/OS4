@@ -5,23 +5,23 @@
 #include "threadPool.h"
 #include <unistd.h>
 
+/*******************************************************************************
+ * This function give a task to each thread if there is any tasks in the queue.
+ *******************************************************************************/
 static void Tasks(void *arg) {
-    ThreadPool *tp = arg;
+    ThreadPool *tp = (ThreadPool *) arg;    //the thread pool we working on.
     while (1) {
         if(pthread_mutex_lock(&(tp->task_mutex)) != 0) {
             perror("mutex lock failed");
         }
         while (tp->num_of_tasks == 0 && tp->stop == 0) {
+            // if we dont have any task and we didnt called tpDestroy
             pthread_cond_wait(&(tp->task_cond), &(tp->task_mutex));
         }
-        /*if (!(!tp->stop && tp->working_threads != 0) &&
-            !(tp->stop && tp->num_of_threads != 0)) {
-            break;
-        }*/
         if ((tp->stop && tp->need_to_wait ==0) ||
         (tp->stop && tp->need_to_wait && osIsQueueEmpty(tp->funcQ)))
             break;
-        ThreadParams *tpQ = osDequeue(tp->funcQ);
+        ThreadParams *tpQ = (ThreadParams *) osDequeue(tp->funcQ);
         tp->num_of_tasks--;
         tp->working_threads++;
         pthread_mutex_unlock(&(tp->task_mutex));
@@ -37,7 +37,11 @@ static void Tasks(void *arg) {
     pthread_cond_signal(&(tp->tasking_cond));
     pthread_mutex_unlock(&(tp->task_mutex));
 }
-
+/*****************************************************************************
+ * Creating a thread pool according to the number of thread requested.
+ * @param numOfThreads the number of threads we want to create in the pool.
+ * @return the thread pool we created.
+ *****************************************************************************/
 ThreadPool* tpCreate(int numOfThreads) {
     int ret;
     // if we received non positive number.
@@ -52,13 +56,14 @@ ThreadPool* tpCreate(int numOfThreads) {
         perror("Malloc failed");
         exit(-1);
     }
-    tp->stop = 0;
+    tp->stop = 0;   //this indicate if we need to stop or not mainly because of tpDestroy called.
     tp->need_to_wait = 0;
     if((tp->funcQ = osCreateQueue()) == NULL){
         perror("Create Queue failed");
         free(tp);
         exit(-1);
     }
+    tp->num_of_threads = numOfThreads;
     tp->threads = (pthread_t *) malloc(sizeof(pthread_t) * tp->num_of_threads);
     if( tp->threads == NULL )
     {
@@ -77,8 +82,8 @@ ThreadPool* tpCreate(int numOfThreads) {
         free(tp);
         exit(-1);
     }
-    tp->num_of_threads = numOfThreads;
-    for (int i = 0; i < numOfThreads; i ++) {
+    int i;
+    for (i = 0; i < numOfThreads; i ++) {
         ret = pthread_create(&tp->threads[i], NULL, (void *)Tasks, (void *)tp);
         if( ret != 0 )
         {
@@ -95,18 +100,23 @@ ThreadPool* tpCreate(int numOfThreads) {
     }
     return tp;
 }
-
+/*****************************************************************************************
+ * Destroying the thread pool and free all the pointers.
+ * @param threadPool the thread pool we want to destroy.
+ * @param shouldWaitForTasks indicate if we should wait for tasks. If its 0 we dont wait.
+ *****************************************************************************************/
 void tpDestroy(ThreadPool* threadPool, int shouldWaitForTasks){
     // destroying the thread pool.
     if (threadPool == NULL)
         return;
     pthread_mutex_lock(&(threadPool->task_mutex));
     if(threadPool->stop == 1) {
+        pthread_mutex_unlock(&(threadPool->task_mutex));
         return;
     }
     threadPool->need_to_wait = shouldWaitForTasks;
     threadPool->stop = 1;
-    if(shouldWaitForTasks == 0) {
+    if(shouldWaitForTasks == 0) {   //destroying the queue.
         while (threadPool->num_of_tasks != 0) {
             ThreadParams *task = osDequeue(threadPool->funcQ);
             threadPool->num_of_tasks--;
@@ -130,7 +140,13 @@ void tpDestroy(ThreadPool* threadPool, int shouldWaitForTasks){
     free(threadPool->threads);
     free(threadPool);
 }
-
+/**************************************************************************************
+ * Inserting a new task into the queue.
+ * @param threadPool the thread pool we that we want it to work on the queue of tasks.
+ * @param computeFunc the function.
+ * @param param the args.
+ * @return 0 if succeeded, -1 if failed.
+ **************************************************************************************/
 int tpInsertTask(ThreadPool* threadPool, void (*computeFunc) (void *), void* param){
     // inserting task to the queue.
     if(threadPool == NULL) {
